@@ -23,7 +23,8 @@
   <section class="view" id="view-region">
     <div class="panel">
       <h2>一、地區評估</h2>
-      <p class="muted">以 1–5 分評估你所在地區（1 = 最公平，5 = 最不公平）。這是你的主觀判斷；每項下方列出可用作參考的公開數據來源。</p>
+      <p class="muted">選擇你身處的地區，應用會用公開數據自動評分；你也可以逐項手動調整（1 = 最公平，5 = 最不公平）。</p>
+      <div class="field" id="country-box"></div>
       <div id="region-fields"></div>
       <h3>地區背景（不計入指數，但影響策略選擇）</h3>
       <div id="context-fields"></div>
@@ -74,6 +75,8 @@
 </nav>
 
 <script src="data.js"></script>
+<script src="plans.js"></script>
+<script src="region.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

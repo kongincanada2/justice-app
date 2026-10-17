@@ -7,6 +7,9 @@ const state = load() || {
               buffer: 'lt3', time: '2to5', tenant: 'rent', debt: 'no', dependents: 'no', discrim: [], risk: 2 },
   calc: {},
 };
+state.country ||= null;     // 選定國家的 ISO3 代碼
+state.manual ||= {};        // 使用者手動改過的因素，不會被數據覆蓋
+state.done ||= {};          // 行動計劃中已完成的步驟
 
 function load() {
   try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return null; }
@@ -84,7 +87,7 @@ function ranked() {
 
 // ---------- 畫面 ----------
 
-function rangeRow(def, value, onChange) {
+function rangeRow(def, value, onChange, note) {
   const out = el('output', {}, String(value));
   const input = el('input', { type: 'range', min: def.min || 1, max: def.max || 5, step: 1, value,
     'aria-label': def.name,
@@ -93,16 +96,64 @@ function rangeRow(def, value, onChange) {
     el('div', { class: 'field-head' }, el('label', {}, def.name), out),
     input,
     el('div', { class: 'scale' }, el('span', {}, def.low), el('span', {}, def.high)),
-    def.hint ? el('div', { class: 'hint' }, def.hint) : null);
+    note || (def.hint ? el('div', { class: 'hint' }, def.hint) : null));
+}
+
+// 顯示某因素的數據依據
+function evidenceNote(fid) {
+  const sc = state.country && REGION_DATA && scoreCountry(state.country);
+  if (!sc) return null;
+  const f = sc.factors[fid];
+  if (!f || !f.evidence.length)
+    return el('div', { class: 'hint' }, NO_DATA_NOTE[fid] || '所選地區沒有此項數據，請自行評估。');
+  const lines = f.evidence.map(e =>
+    el('li', {}, `${e.name}：${fmtVal(e.value)}（${e.year} 年）→ 比全球約 ${Math.round(e.pct * 100)}% 的國家差`));
+  return el('div', { class: 'evidence' },
+    el('div', {}, f.proxyOnly ? `替代指標參考：${f.score} 分（只有間接數據，未自動套用，請自行評估）`
+      : `數據建議：${f.score} 分` + (state.manual[fid] ? '（你已手動修改）' : '')),
+    el('ul', {}, lines),
+    f.evidence.some(e => e.proxy) ? el('div', {}, '標示「替代指標」的項目只能間接反映此因素。') : null);
+}
+
+function applyCountry(iso3) {
+  state.country = iso3 || null;
+  state.manual = {};
+  for (const st of STRATEGIES)
+    for (const i of st.calc?.inputs || []) if (i.fromData) delete state.calc[st.id]?.[i.id];
+  if (iso3) {
+    const sc = scoreCountry(iso3);
+    for (const [fid, f] of Object.entries(sc.factors)) if (f.score && !f.proxyOnly) state.region[fid] = f.score;
+    const sp = suggestSpeech(sc.country);
+    if (sp) state.personal.speech = sp;
+  }
+  save(); renderRegion(); renderPersonal();
+}
+
+function countryPicker() {
+  const box = $('#country-box');
+  if (!REGION_DATA) {
+    box.replaceChildren(el('p', { class: 'muted' }, '公開數據暫時未能載入，請手動評估，或連線後重新開啟應用。'));
+    return;
+  }
+  const sel = el('select', { 'aria-label': '選擇地區', onchange: e => applyCountry(e.target.value) },
+    el('option', { value: '' }, '不選擇（全部手動評估）'),
+    REGION_DATA.countries
+      .map(c => [c.iso3, countryLabel(c)])
+      .sort((a, b) => a[1].localeCompare(b[1], 'zh-Hant'))
+      .map(([v, t]) => { const o = el('option', { value: v }, t); if (state.country === v) o.selected = true; return o; }));
+  const c = state.country && REGION_DATA.countries.find(x => x.iso3 === state.country);
+  box.replaceChildren(
+    el('label', {}, '你身處的國家或地區'), sel,
+    el('p', { class: 'hint' }, `數據來源：世界銀行開放數據，更新於 ${REGION_DATA.generated}。選定後，各項分數會按該地區在全球的相對排名自動填入，你可以再手動調整。數據只反映全國平均，未必代表你所在的城市或社群。部分地區（例如台灣）不在世界銀行資料庫中，請手動評估。`),
+    c && suggestSpeech(c) ? el('p', { class: 'hint' }, '「個人處境」中的言論環境已按「話語權與問責」分數粗略推定，請按你的實際情況確認。') : null);
 }
 
 function renderRegion() {
-  const box = $('#region-fields'); box.replaceChildren();
-  for (const f of REGION_FACTORS)
-    box.append(rangeRow(f, state.region[f.id], v => { state.region[f.id] = v; save(); }));
-  const ctx = $('#context-fields'); ctx.replaceChildren();
-  for (const f of CONTEXT_FACTORS)
-    ctx.append(rangeRow(f, state.region[f.id], v => { state.region[f.id] = v; save(); }));
+  countryPicker();
+  const row = f => rangeRow(f, state.region[f.id],
+    v => { state.region[f.id] = v; if (state.country) state.manual[f.id] = true; save(); }, evidenceNote(f.id));
+  $('#region-fields').replaceChildren(...REGION_FACTORS.map(row));
+  $('#context-fields').replaceChildren(...CONTEXT_FACTORS.map(row));
 }
 
 function renderPersonal() {
@@ -129,9 +180,24 @@ function renderPersonal() {
   }
 }
 
+function dataDefault(i) {
+  if (!i.fromData || !state.country || !REGION_DATA) return null;
+  const v = REGION_DATA.countries.find(x => x.iso3 === state.country)?.values[i.fromData];
+  return v ? { value: v[0], year: v[1] } : null;
+}
+
 function calcBlock(s) {
   const c = s.calc; if (!c) return null;
   const vals = state.calc[s.id] || {};
+  const dataNotes = [];
+  for (const i of c.inputs) {
+    const d = dataDefault(i);
+    if (d && vals[i.id] == null) {
+      (state.calc[s.id] ||= {})[i.id] = String(d.value);
+      dataNotes.push(`「${i.label}」已預填所選地區的${INDICATOR_ZH[i.fromData]}：${d.value}%（世界銀行，${d.year} 年）。${i.dataNote || ''}`);
+    }
+  }
+  Object.assign(vals, state.calc[s.id] || {});
   const result = el('p', { class: 'calc-out' });
   const update = () => {
     const v = {};
@@ -145,12 +211,39 @@ function calcBlock(s) {
   return el('div', { class: 'calc' },
     el('h4', {}, c.title),
     el('p', { class: 'tag-assume' }, '公式模型：結果只反映你輸入的數字，數據請自行查證。'),
+    dataNotes.map(t => el('p', { class: 'hint' }, t)),
     rows, result);
 }
 
 function list(title, items, cls = '') {
   if (!items || !items.length) return null;
   return el('div', { class: 'sec ' + cls }, el('h4', {}, title), el('ul', {}, items.map(t => el('li', {}, t))));
+}
+
+function planBlock(s) {
+  const plan = PLANS[s.id];
+  if (!plan) return list('具體步驟', s.steps);
+  const total = plan.reduce((a, ph) => a + ph.items.length, 0);
+  const count = () => plan.reduce((a, ph, pi) => a + ph.items.filter((_, ii) => state.done[`${s.id}:${pi}:${ii}`]).length, 0);
+  const prog = el('span', { class: 'prog' });
+  const upd = () => { prog.textContent = `已完成 ${count()} / ${total} 步`; };
+  upd();
+  return el('div', { class: 'sec plan' },
+    el('h4', {}, '分階段行動計劃 ', prog),
+    plan.map((ph, pi) => el('div', { class: 'phase' },
+      el('h5', {}, ph.phase),
+      ph.items.map((it, ii) => {
+        const key = `${s.id}:${pi}:${ii}`;
+        const cb = el('input', { type: 'checkbox', onchange: e => {
+          if (e.target.checked) state.done[key] = 1; else delete state.done[key];
+          save(); upd(); } });
+        cb.checked = !!state.done[key];
+        return el('label', { class: 'step' }, cb,
+          el('div', {},
+            el('b', {}, it.t),
+            el('p', {}, it.d),
+            el('p', { class: 'ok' }, '完成標準：' + it.ok)));
+      }))));
 }
 
 function card({ s, reasons, lvl }, rank) {
@@ -166,7 +259,7 @@ function card({ s, reasons, lvl }, rank) {
     reasons.length ? el('div', { class: 'sec why' }, el('h4', {}, '為何推薦給你'), el('p', {}, reasons.join('；') + '。')) : null,
     lvl.note ? el('p', { class: 'note' }, lvl.note) : null,
     el('div', { class: 'sec' }, el('h4', {}, '運作機制'), el('p', {}, s.mechanism)),
-    list('具體步驟', s.steps),
+    planBlock(s),
     el('div', { class: 'sec effect' },
       el('h4', {}, '效果評估'),
       el('dl', {},
@@ -178,6 +271,13 @@ function card({ s, reasons, lvl }, rank) {
     list('潛在風險', s.risks, 'risk'),
     list('安全提示', s.safety, 'safety'),
     list('如何讓更多同路人加入', s.recruit));
+}
+
+function indexNote() {
+  const sc = state.country && REGION_DATA && scoreCountry(state.country);
+  if (!sc) return '此指數是你自己評分的平均值換算，反映你的主觀評估，並非客觀測量。';
+  const withData = REGION_FACTORS.filter(f => sc.factors[f.id]?.score && !sc.factors[f.id].proxyOnly && !state.manual[f.id]).length;
+  return `${countryLabel(sc.country)}：7 項中有 ${withData} 項採用世界銀行數據的全球相對排名，其餘為你的評估。這是相對位置的粗略換算，不是客觀測量。`;
 }
 
 function renderResults() {
@@ -192,7 +292,7 @@ function renderResults() {
     el('section', { class: 'panel index' },
       el('div', { class: 'big' }, String(idx), el('small', {}, '/100')),
       el('div', {}, el('h2', {}, `不正義指數：${band}`),
-        el('p', { class: 'tag-assume' }, '此指數是你自己評分的平均值換算，反映你的主觀評估，並非客觀測量。可參考各項提示中的公開數據來源校準。')),
+        el('p', { class: 'tag-assume' }, indexNote())),
       el('div', { class: 'bars' }, bars)),
     el('h2', { class: 'list-title' }, '為你推薦的策略'),
     el('p', { class: 'muted' }, '按與你所在地區及處境的相關程度排序。點擊展開詳情。'),
@@ -234,5 +334,6 @@ $('#wipe').addEventListener('click', () => {
 renderRegion();
 renderPersonal();
 show('region');
+loadRegionData().then(renderRegion);
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

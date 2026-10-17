@@ -91,7 +91,8 @@ const STRATEGIES = [
       inputs: [
         { id: 'n', label: '一同轉移的人數', default: 1 },
         { id: 'amt', label: '每人平均轉移金額', default: '' },
-        { id: 'nim', label: '該銀行的淨息差（%，見銀行年報）', default: '' },
+        { id: 'nim', label: '該銀行的淨息差（%，見銀行年報）', default: '', fromData: 'FR.INR.LNDP',
+          dataNote: '存貸利差與個別銀行的淨息差定義不同，只可作粗略參考；如有銀行年報數字，請改用年報數字。' },
         { id: 'profit', label: '該銀行年度淨利潤（選填，見年報）', default: '' },
       ],
       compute: v => {
