@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>正義實踐</title>
+<meta name="description" content="評估所在地區的不正義程度，並取得合法、非暴力的具體策略建議。資料只存在你的手機。">
+<meta name="theme-color" content="#1f4d3f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="正義實踐">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>正義實踐</h1>
+  <p>評估你身處地區的不正義，找出你能做的事</p>
+</header>
+
+<main>
+  <section class="view" id="view-region">
+    <div class="panel">
+      <h2>一、地區評估</h2>
+      <p class="muted">以 1–5 分評估你所在地區（1 = 最公平，5 = 最不公平）。這是你的主觀判斷；每項下方列出可用作參考的公開數據來源。</p>
+      <div id="region-fields"></div>
+      <h3>地區背景（不計入指數，但影響策略選擇）</h3>
+      <div id="context-fields"></div>
+    </div>
+    <button class="primary" data-go="personal">下一步：個人處境</button>
+  </section>
+
+  <section class="view" id="view-personal" hidden>
+    <div class="panel">
+      <h2>二、個人處境</h2>
+      <p class="muted">這些資料用來判斷哪些策略適合你、推薦實踐到什麼程度。只儲存在這部手機上。</p>
+      <div id="personal-fields"></div>
+    </div>
+    <button class="primary" data-go="results">查看策略建議</button>
+  </section>
+
+  <section class="view" id="view-results" hidden>
+    <div id="results"></div>
+  </section>
+
+  <section class="view" id="view-about" hidden>
+    <div class="panel">
+      <h2>關於與私隱</h2>
+      <h3>你的資料</h3>
+      <p>所有輸入只儲存在這部手機的瀏覽器中，本應用不會連線傳送任何資料。如手機可能被他人查看，請使用下方「清除所有資料」。</p>
+      <div class="row">
+        <button id="export" type="button">匯出我的資料</button>
+        <button id="wipe" type="button" class="danger">清除所有資料</button>
+      </div>
+      <h3>本應用的原則</h3>
+      <ul>
+        <li>只推薦合法、非暴力的策略。策略的目的是增強你與同路人的力量、改變不公平的結構，而不是針對任何個人。</li>
+        <li>不提供未經查證的數字。效果評估以「運作機制」、「參與人數與效果的關係」和「可代入你自己查到的數據的公式」呈現。</li>
+        <li>見效時間是粗略判斷，不是預測。</li>
+        <li>各地法律差異很大。涉及組織、集會或公開言論的策略，請先了解當地法律或尋求法律意見。</li>
+      </ul>
+      <h3>安裝到手機</h3>
+      <p>iPhone：用 Safari 開啟，按「分享」→「加入主畫面」。<br>Android：用 Chrome 開啟，按選單 →「安裝應用程式」或「加到主畫面」。安裝後可離線使用。</p>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-tab="region" class="on">地區</button>
+  <button data-tab="personal">個人</button>
+  <button data-tab="results">策略</button>
+  <button data-tab="about">私隱</button>
+</nav>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
