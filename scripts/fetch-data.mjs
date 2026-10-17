@@ -7,7 +7,7 @@ const INDICATORS = [
   'SI.POV.DDAY', 'SI.POV.LMIC', 'SI.POV.UMIC',   // 貧窮人口比例（不同貧窮線）
   'SI.POV.GINI', 'SI.DST.10TH.10',               // 堅尼系數、最高 10% 收入佔比
   'GOV_WGI_VA.SC', 'GOV_WGI_RL.SC',              // 話語權與問責、法治（0–100）
-  'SL.TLF.CACT.FM.ZS',            // 婦女、營商與法律指數；女男勞動參與率比
+  'SL.TLF.CACT.FM.ZS',            // 女男勞動參與率比
   'HD.HCI.LAYS', 'SE.TER.ENRR',                  // 學習調整後的受教育年數；高等教育入學率
   'SL.EMP.VULN.ZS', 'SL.UEM.TOTL.ZS',            // 弱勢就業比例；失業率
   'FS.AST.PRVT.GD.ZS', 'FR.INR.LNDP',            // 私人部門國內信貸；存貸利差
