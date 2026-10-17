@@ -1,6 +1,6 @@
 // 從世界銀行開放數據 API 下載各國最新指標，輸出 data/region-data.json。
 // 由 GitHub Actions 定期執行；本應用在手機上不會連線到任何外部伺服器。
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 
 const API = 'https://api.worldbank.org/v2';
 const INDICATORS = [
@@ -55,5 +55,6 @@ const out = {
   indicators,
   countries: Object.values(countries).sort((a, b) => a.name.localeCompare(b.name)),
 };
+await mkdir('data', { recursive: true });
 await writeFile('data/region-data.json', JSON.stringify(out));
 console.log(`wrote ${out.countries.length} countries, ${Object.keys(indicators).length} indicators`);
